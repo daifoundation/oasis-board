@@ -1,4 +1,5 @@
 pragma solidity ^0.6.7;
+pragma experimental ABIEncoderV2;
 
 interface ERC20 {
     function transferFrom(address, address, uint) external returns (bool);
@@ -6,70 +7,70 @@ interface ERC20 {
 
 contract Board {
 
-    uint private lastId = 1;
-
     struct Order {
-        bool     buying;
-        address  owner;
-        uint     expires;
-        uint     baseAmt;
-        uint     price;
+        address baseTkn;
+        address quoteTkn;
+        uint baseDecimals;
+        bool buying;
+        address owner;
+        uint expires;
+        uint baseAmt;
+        uint price;
     }
 
-    mapping (uint => Order) public orders;
+    uint private nextId = 1;
+
+    mapping (uint => bytes32) public orders;
 
     uint constant TTL = 14 * 24 * 60 * 60;
 
-    function getId(address baseTkn, address quoteTkn, uint baseDecimals, uint serial) public pure returns (uint) {
-        return uint(keccak256(abi.encodePacked(baseTkn, quoteTkn, baseDecimals, serial)));
+    function getHash(Order memory o) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(
+            o.baseTkn, o.quoteTkn, o.baseDecimals, o.buying, o.owner, o.expires, o.baseAmt, o.price
+        ));
     }
 
-    function quote(uint base, uint price, uint baseDecimals) internal pure returns (uint q) {
-        q = (base * price) / 10 ** uint(baseDecimals);
-        require((q * 10 ** uint(baseDecimals)) / price == base, 'board/quote-overflow');
+    function quote(uint base, uint price, uint baseDecimals) private pure returns (uint q) {
+        q = (base * price) / 10 ** uint(baseDecimals); //TODO: rounding
     }
 
-    function make(
-        address baseTkn, address quoteTkn, uint baseDecimals, bool buying, uint baseAmt, uint price
-    ) public returns (uint serial) {
-        serial = lastId++;
-        Order storage o = orders[getId(baseTkn, quoteTkn, baseDecimals, serial)];
-        o.buying = buying;
-        o.baseAmt = baseAmt;
-        o.price = price;
-        o.owner = msg.sender;
-        o.expires = block.timestamp + TTL;
+    function min(uint a, uint b) private pure returns (uint) {
+        return a < b ? a : b;
     }
 
-    function take(
-        address baseTkn, address quoteTkn, uint baseDecimals, uint serial, uint baseAmt
-    ) public {
-        uint id = getId(baseTkn, quoteTkn, baseDecimals, serial);
-        Order storage o = orders[id];
+    function make(Order memory o) public returns (uint id) {
+        o.expires = min(block.timestamp, min(o.expires, block.timestamp + TTL));
+        id = nextId++;
+        orders[id] = getHash(o);
+        return id;
+    }
 
+    function take(uint id, uint baseAmt, Order memory o) public {
+        require(orders[id] == getHash(o));
         require(o.expires > block.timestamp, 'board/expired');
         require(baseAmt <= o.baseAmt, 'board/base-too-big');
 
-        uint quoteAmt = quote(baseAmt, o.price, baseDecimals);
+        uint quoteAmt = quote(baseAmt, o.price, o.baseDecimals);
 
         // TODO: safe transfer!
         if(o.buying) {
-            ERC20(quoteTkn).transferFrom(o.owner, msg.sender, quoteAmt);
-            ERC20(baseAmt).transferFrom(msg.sender, o.owner, baseAmt);
+            ERC20(o.quoteTkn).transferFrom(o.owner, msg.sender, quoteAmt);
+            ERC20(o.baseAmt).transferFrom(msg.sender, o.owner, baseAmt);
         } else {
-            ERC20(quoteTkn).transferFrom(msg.sender, o.owner, quoteAmt);
-            ERC20(baseAmt).transferFrom(o.owner, msg.sender, baseAmt);
+            ERC20(o.quoteTkn).transferFrom(msg.sender, o.owner, quoteAmt);
+            ERC20(o.baseAmt).transferFrom(o.owner, msg.sender, baseAmt);
         }
 
-        if(o.baseAmt < baseAmt) {
+        if(baseAmt < o.baseAmt) {
             o.baseAmt = o.baseAmt - baseAmt;
+            orders[id] = getHash(o);
         } else {
             delete orders[id];
         }
     }
 
-    function cancel(uint id) public {
-        Order storage o = orders[id];
+    function cancel(uint id, Order memory o) public {
+        require(orders[id] == getHash(o));
         require(o.expires >= block.timestamp || o.owner == msg.sender);
         delete orders[id];
     }
