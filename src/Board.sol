@@ -32,20 +32,6 @@ contract Board {
 
     uint constant TTL = 14 * 24 * 60 * 60;
 
-    function getHash(Order memory o) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(
-            o.baseTkn, o.quoteTkn, o.baseDecimals, o.buying, o.owner, o.expires, o.baseAmt, o.price
-        ));
-    }
-
-    function quote(uint base, uint price, uint baseDecimals) private pure returns (uint q) {
-        q = (base * price) / 10 ** uint(baseDecimals); //TODO: rounding
-    }
-
-    function min(uint a, uint b) private pure returns (uint) {
-        return a < b ? a : b;
-    }
-
     function make(Order memory o) public returns (uint id) {
         o.expires = min(block.timestamp, min(o.expires, block.timestamp + TTL));
         id = nextId++;
@@ -60,13 +46,12 @@ contract Board {
 
         uint quoteAmt = quote(baseAmt, o.price, o.baseDecimals);
 
-        // TODO: safe transfer!
         if(o.buying) {
-            ERC20(o.quoteTkn).transferFrom(o.owner, msg.sender, quoteAmt);
-            ERC20(o.baseAmt).transferFrom(msg.sender, o.owner, baseAmt);
+            safeTransferFrom(ERC20(o.quoteTkn), o.owner, msg.sender, quoteAmt);
+            safeTransferFrom(ERC20(o.baseAmt), msg.sender, o.owner, baseAmt);
         } else {
-            ERC20(o.quoteTkn).transferFrom(msg.sender, o.owner, quoteAmt);
-            ERC20(o.baseAmt).transferFrom(o.owner, msg.sender, baseAmt);
+            safeTransferFrom(ERC20(o.quoteTkn), msg.sender, o.owner, quoteAmt);
+            safeTransferFrom(ERC20(o.baseAmt), o.owner, msg.sender, baseAmt);
         }
 
         if(baseAmt < o.baseAmt) {
@@ -84,5 +69,32 @@ contract Board {
         require(o.expires >= block.timestamp || o.owner == msg.sender);
         delete orders[id];
         emit Cancel(id);
+    }
+
+    function safeTransferFrom(ERC20 token, address from, address to, uint amount) private {
+        uint256 size;
+        assembly { size := extcodesize(token) }
+        require(size > 0, "board/not-a-contract");
+
+        bytes memory data = abi.encodeWithSelector(ERC20(token).transferFrom.selector, from, to, amount);
+        (bool success, bytes memory returndata) = address(token).call(data);
+        require(success, "board/token-call-failed");
+        if (returndata.length > 0) { // Return data is optional
+            require(abi.decode(returndata, (bool)), "board/transferFrom failed");
+        }
+    }
+
+    function getHash(Order memory o) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(
+            o.baseTkn, o.quoteTkn, o.baseDecimals, o.buying, o.owner, o.expires, o.baseAmt, o.price
+        ));
+    }
+
+    function quote(uint base, uint price, uint baseDecimals) private pure returns (uint q) {
+        q = (base * price) / 10 ** uint(baseDecimals); //TODO: rounding
+    }
+
+    function min(uint a, uint b) private pure returns (uint) {
+        return a < b ? a : b;
     }
 }
