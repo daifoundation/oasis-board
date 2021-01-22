@@ -1,5 +1,9 @@
-pragma solidity ^0.6.7;
-pragma experimental ABIEncoderV2;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >= 0.7.6;
+pragma abicoder v2;
+
+// export DAPP_SOLC_VERSION=0.7.6
+// nix-env -f https://github.com/dapphub/dapptools/archive/master.tar.gz -iA solc-static-versions.solc_0_7_6
 
 interface ERC20 {
     function transferFrom(address, address, uint) external returns (bool);
@@ -17,6 +21,10 @@ contract Board {
         uint baseAmt;
         uint price;
     }
+
+    event Make(uint id, Order order);
+    event Take(uint id, uint baseAmt, uint quoteAmt);
+    event Cancel(uint id);
 
     uint private nextId = 1;
 
@@ -42,7 +50,7 @@ contract Board {
         o.expires = min(block.timestamp, min(o.expires, block.timestamp + TTL));
         id = nextId++;
         orders[id] = getHash(o);
-        return id;
+        emit Make(id, o);
     }
 
     function take(uint id, uint baseAmt, Order memory o) public {
@@ -67,11 +75,14 @@ contract Board {
         } else {
             delete orders[id];
         }
+
+        emit Take(id, baseAmt, quoteAmt);
     }
 
     function cancel(uint id, Order memory o) public {
         require(orders[id] == getHash(o));
         require(o.expires >= block.timestamp || o.owner == msg.sender);
         delete orders[id];
+        emit Cancel(id);
     }
 }
