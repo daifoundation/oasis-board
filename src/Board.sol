@@ -26,15 +26,16 @@ contract Board {
     event Take(uint id, uint baseAmt, uint quoteAmt);
     event Cancel(uint id);
 
-    uint private nextId = 1;
+    uint private next = 1;
 
     mapping (uint => bytes32) public orders;
 
     uint constant TTL = 14 * 24 * 60 * 60;
 
     function make(Order memory o) public returns (uint id) {
-        o.expires = min(block.timestamp, min(o.expires, block.timestamp + TTL));
-        id = nextId++;
+        require(o.expires > block.timestamp); //TODO: min ttl?
+        o.expires = min(o.expires, block.timestamp + TTL);
+        id = next++;
         orders[id] = getHash(o);
         emit Make(id, o);
     }
@@ -44,7 +45,7 @@ contract Board {
         require(o.expires > block.timestamp, 'board/expired');
         require(baseAmt <= o.baseAmt, 'board/base-too-big');
 
-        uint quoteAmt = quote(baseAmt, o.price, o.baseDecimals);
+        uint quoteAmt = (baseAmt * o.price) / 10 ** uint(o.baseDecimals); //TODO: rounding
 
         if(o.buying) {
             safeTransferFrom(ERC20(o.quoteTkn), o.owner, msg.sender, quoteAmt);
@@ -88,10 +89,6 @@ contract Board {
         return keccak256(abi.encodePacked(
             o.baseTkn, o.quoteTkn, o.baseDecimals, o.buying, o.owner, o.expires, o.baseAmt, o.price
         ));
-    }
-
-    function quote(uint base, uint price, uint baseDecimals) private pure returns (uint q) {
-        q = (base * price) / 10 ** uint(baseDecimals); //TODO: rounding
     }
 
     function min(uint a, uint b) private pure returns (uint) {
