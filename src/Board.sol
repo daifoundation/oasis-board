@@ -14,12 +14,13 @@ contract Board {
     struct Order {
         address baseTkn;
         address quoteTkn;
-        uint baseDecimals;
+        uint8 baseDecimals;
         bool buying;
         address owner;
         uint expires;
         uint baseAmt;
         uint price;
+        bool flexible;
     }
 
     event Make(uint id, Order order);
@@ -44,6 +45,7 @@ contract Board {
         require(orders[id] == getHash(o));
         require(o.expires > block.timestamp, 'board/expired');
         require(baseAmt <= o.baseAmt, 'board/base-too-big');
+        require(!o.flexible && baseAmt == o.baseAmt, 'board/partial-not-allowed');
 
         uint quoteAmt = (baseAmt * o.price) / 10 ** uint(o.baseDecimals); //TODO: rounding
 
@@ -77,7 +79,9 @@ contract Board {
         assembly { size := extcodesize(token) }
         require(size > 0, "board/not-a-contract");
 
-        bytes memory data = abi.encodeWithSelector(ERC20(token).transferFrom.selector, from, to, amount);
+        bytes memory data = abi.encodeWithSelector(
+            ERC20(token).transferFrom.selector, from, to, amount
+        );
         (bool success, bytes memory returndata) = address(token).call(data);
         require(success, "board/token-call-failed");
         if (returndata.length > 0) { // Return data is optional
@@ -87,7 +91,9 @@ contract Board {
 
     function getHash(Order memory o) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(
-            o.baseTkn, o.quoteTkn, o.baseDecimals, o.buying, o.owner, o.expires, o.baseAmt, o.price
+            o.baseTkn, o.quoteTkn, o.baseDecimals,
+            o.buying, o.owner, o.expires, o.baseAmt,
+            o.price, o.flexible
         ));
     }
 
