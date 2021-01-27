@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >= 0.7.6;
-pragma abicoder v2;
+pragma solidity >= 0.8.0;
 
-// export DAPP_SOLC_VERSION=0.7.6
-// nix-env -f https://github.com/dapphub/dapptools/archive/master.tar.gz -iA solc-static-versions.solc_0_7_6
+// export DAPP_SOLC_VERSION=0.8.0
+// nix-env -f https://github.com/dapphub/dapptools/archive/master.tar.gz -iA solc-static-versions.solc_0_8_0
 
 interface ERC20 {
     function transferFrom(address, address, uint) external returns (bool);
@@ -11,10 +10,12 @@ interface ERC20 {
 
 contract Board {
 
+    // TODO: Order -> Announcement?
     struct Order {
         address baseTkn;
         address quoteTkn;
         uint8 baseDecimals;
+        uint8 quoteDecimals;
         bool buying;
         address owner;
         uint expires;
@@ -47,7 +48,9 @@ contract Board {
         require(baseAmt <= o.baseAmt, 'board/base-too-big');
         require(!o.flexible && baseAmt == o.baseAmt, 'board/partial-not-allowed');
 
-        uint quoteAmt = (baseAmt * o.price) / 10 ** uint(o.baseDecimals); //TODO: rounding
+        uint baseOne = 10 ** uint(o.baseDecimals);
+        uint roundingCorrection = !o.buying ? 10 ** uint(o.quoteDecimals) / 2: 0;
+        uint quoteAmt = (baseAmt * o.price + roundingCorrection) / baseOne;
 
         if(o.buying) {
             safeTransferFrom(ERC20(o.quoteTkn), o.owner, msg.sender, quoteAmt);
