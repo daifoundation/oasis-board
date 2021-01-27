@@ -49,7 +49,7 @@ contract Board {
         require(!o.flexible && baseAmt == o.baseAmt, 'board/partial-not-allowed');
 
         uint baseOne = 10 ** uint(o.baseDecimals);
-        uint roundingCorrection = !o.buying ? 10 ** uint(o.quoteDecimals) / 2: 0;
+        uint roundingCorrection = !o.buying ? 10 ** uint(o.quoteDecimals) / 2 : 0;
         uint quoteAmt = (baseAmt * o.price + roundingCorrection) / baseOne;
 
         if(o.buying) {
