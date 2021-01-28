@@ -51,10 +51,10 @@ contract Board {
 
         if(o.buying) {
             safeTransferFrom(ERC20(o.quoteTkn), o.owner, msg.sender, quoteAmt);
-            safeTransferFrom(ERC20(o.baseAmt), msg.sender, o.owner, baseAmt);
+            safeTransferFrom(ERC20(o.baseTkn), msg.sender, o.owner, baseAmt);
         } else {
             safeTransferFrom(ERC20(o.quoteTkn), msg.sender, o.owner, quoteAmt);
-            safeTransferFrom(ERC20(o.baseAmt), o.owner, msg.sender, baseAmt);
+            safeTransferFrom(ERC20(o.baseTkn), o.owner, msg.sender, baseAmt);
         }
 
         if(baseAmt < o.baseAmt) {
