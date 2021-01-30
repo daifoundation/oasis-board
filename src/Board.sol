@@ -38,7 +38,7 @@ contract Board {
         emit Make(id, o);
     }
 
-    function take(uint id, uint baseAmt, Order memory o) external {
+    function take(uint id, uint baseAmt, Order calldata o) external {
         require(orders[id] == getHash(o), 'board/wrong-hash');
         require(o.expires > block.timestamp, 'board/expired');
         require(baseAmt <= o.baseAmt, 'board/base-too-big');
@@ -57,8 +57,9 @@ contract Board {
         }
 
         if(baseAmt < o.baseAmt) {
-            o.baseAmt = o.baseAmt - baseAmt;
-            orders[id] = getHash(o);
+            Order memory n = o;
+            n.baseAmt = n.baseAmt - baseAmt;
+            orders[id] = getHash(n);
         } else {
             delete orders[id];
         }
@@ -66,7 +67,7 @@ contract Board {
         emit Take(id, baseAmt, quoteAmt);
     }
 
-    function cancel(uint id, Order memory o) external {
+    function cancel(uint id, Order calldata o) external {
         require(orders[id] == getHash(o), 'board/wrong-hash');
         require(o.expires < block.timestamp || o.owner == msg.sender, 'board/invalid-cancel');
         delete orders[id];
