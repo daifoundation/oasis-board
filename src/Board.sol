@@ -1,29 +1,24 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >= 0.8.0;
 
-// export DAPP_SOLC_VERSION=0.8.0
-// nix-env -f https://github.com/dapphub/dapptools/archive/master.tar.gz -iA solc-static-versions.solc_0_8_0
-
 interface ERC20 {
     function transferFrom(address, address, uint) external returns (bool);
+    function decimals() external returns (uint8);
+}
+
+struct Order {
+    address baseTkn;
+    address quoteTkn;
+    uint8 baseDecimals;
+    bool buying;
+    address owner;
+    uint expires;
+    uint baseAmt;
+    uint price;
+    bool flexible;
 }
 
 contract Board {
-
-    // TODO: Order -> Announcement?
-    struct Order {
-        address baseTkn;
-        address quoteTkn;
-        uint8 baseDecimals;
-        uint8 quoteDecimals;
-        bool buying;
-        address owner;
-        uint expires;
-        uint baseAmt;
-        uint price;
-        bool flexible;
-    }
-
     event Make(uint id, Order order);
     event Take(uint id, uint baseAmt, uint quoteAmt);
     event Cancel(uint id);
@@ -34,22 +29,23 @@ contract Board {
 
     uint constant TTL = 14 * 24 * 60 * 60;
 
-    function make(Order memory o) public returns (uint id) {
-        require(o.expires > block.timestamp); //TODO: min ttl?
-        o.expires = min(o.expires, block.timestamp + TTL);
+    function make(Order calldata o) external returns (uint id) {
+        require(o.expires > block.timestamp && o.expires < block.timestamp + TTL);
+        require(o.owner == msg.sender);
+        // o.expires = min(o.expires, block.timestamp + TTL);
         id = next++;
         orders[id] = getHash(o);
         emit Make(id, o);
     }
 
-    function take(uint id, uint baseAmt, Order memory o) public {
-        require(orders[id] == getHash(o));
+    function take(uint id, uint baseAmt, Order memory o) external {
+        require(orders[id] == getHash(o), 'board/wrong-hash');
         require(o.expires > block.timestamp, 'board/expired');
         require(baseAmt <= o.baseAmt, 'board/base-too-big');
-        require(!o.flexible && baseAmt == o.baseAmt, 'board/partial-not-allowed');
+        require(o.flexible || baseAmt == o.baseAmt, 'board/flexible-not-allowed');
 
         uint baseOne = 10 ** uint(o.baseDecimals);
-        uint roundingCorrection = !o.buying ? 10 ** uint(o.quoteDecimals) / 2 : 0;
+        uint roundingCorrection = !o.buying ? baseOne / 2 : 0;
         uint quoteAmt = (baseAmt * o.price + roundingCorrection) / baseOne;
 
         if(o.buying) {
@@ -70,9 +66,9 @@ contract Board {
         emit Take(id, baseAmt, quoteAmt);
     }
 
-    function cancel(uint id, Order memory o) public {
-        require(orders[id] == getHash(o));
-        require(o.expires >= block.timestamp || o.owner == msg.sender);
+    function cancel(uint id, Order memory o) external {
+        require(orders[id] == getHash(o), 'board/wrong-hash');
+        require(o.expires < block.timestamp || o.owner == msg.sender, 'board/invalid-cancel');
         delete orders[id];
         emit Cancel(id);
     }
