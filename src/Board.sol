@@ -20,8 +20,8 @@ struct Order {
 
 contract Board {
     event Make(uint id, Order order);
-    event Take(uint id, uint baseAmt, uint quoteAmt);
-    event Cancel(uint id);
+    event Take(address sender, uint id, uint baseAmt, uint quoteAmt);
+    event Cancel(address sender, uint id);
 
     uint private next = 1;
 
@@ -34,7 +34,7 @@ contract Board {
         require(o.owner == msg.sender);
         // o.expires = min(o.expires, block.timestamp + TTL);
         id = next++;
-        orders[id] = getHash(o);
+        orders[id] = getHash2(o);
         emit Make(id, o);
     }
 
@@ -48,14 +48,6 @@ contract Board {
         uint roundingCorrection = !o.buying ? baseOne / 2 : 0;
         uint quoteAmt = (baseAmt * o.price + roundingCorrection) / baseOne;
 
-        if(o.buying) {
-            safeTransferFrom(ERC20(o.quoteTkn), o.owner, msg.sender, quoteAmt);
-            safeTransferFrom(ERC20(o.baseTkn), msg.sender, o.owner, baseAmt);
-        } else {
-            safeTransferFrom(ERC20(o.quoteTkn), msg.sender, o.owner, quoteAmt);
-            safeTransferFrom(ERC20(o.baseTkn), o.owner, msg.sender, baseAmt);
-        }
-
         if(baseAmt < o.baseAmt) {
             Order memory n = o;
             n.baseAmt = n.baseAmt - baseAmt;
@@ -64,14 +56,22 @@ contract Board {
             delete orders[id];
         }
 
-        emit Take(id, baseAmt, quoteAmt);
+        emit Take(msg.sender, id, baseAmt, quoteAmt);
+
+        if(o.buying) {
+            safeTransferFrom(ERC20(o.quoteTkn), o.owner, msg.sender, quoteAmt);
+            safeTransferFrom(ERC20(o.baseTkn), msg.sender, o.owner, baseAmt);
+        } else {
+            safeTransferFrom(ERC20(o.quoteTkn), msg.sender, o.owner, quoteAmt);
+            safeTransferFrom(ERC20(o.baseTkn), o.owner, msg.sender, baseAmt);
+        }
     }
 
     function cancel(uint id, Order calldata o) external {
         require(orders[id] == getHash(o), 'board/wrong-hash');
         require(o.expires < block.timestamp || o.owner == msg.sender, 'board/invalid-cancel');
         delete orders[id];
-        emit Cancel(id);
+        emit Cancel(msg.sender, id);
     }
 
     function safeTransferFrom(ERC20 token, address from, address to, uint amount) private {
@@ -93,6 +93,14 @@ contract Board {
         return keccak256(abi.encodePacked(
             o.baseTkn, o.quoteTkn, o.baseDecimals,
             o.buying, o.owner, o.expires, o.baseAmt,
+            o.price, o.flexible
+        ));
+    }
+
+    function getHash2(Order memory o) private view returns (bytes32) {
+        return keccak256(abi.encodePacked(
+            o.baseTkn, o.quoteTkn, o.baseDecimals,
+            o.buying, o.owner, o.expires + block.timestamp, o.baseAmt,
             o.price, o.flexible
         ));
     }
