@@ -12,7 +12,7 @@ struct Order {
     uint8 baseDecimals;
     bool buying;
     address owner;
-    uint expires;
+    uint expires; // timestamp
     uint baseAmt;
     uint price;
     bool flexible;
@@ -27,14 +27,13 @@ contract Board {
 
     mapping (uint => bytes32) public orders;
 
-    uint constant TTL = 14 * 24 * 60 * 60;
+    uint constant TTL = 14 * 24 * 60 * 60; // 14 days
 
     function make(Order calldata o) external returns (uint id) {
         require(o.expires > block.timestamp && o.expires < block.timestamp + TTL);
         require(o.owner == msg.sender);
-        // o.expires = min(o.expires, block.timestamp + TTL);
         id = next++;
-        orders[id] = getHash2(o);
+        orders[id] = getHash(o);
         emit Make(id, o);
     }
 
@@ -69,7 +68,7 @@ contract Board {
 
     function cancel(uint id, Order calldata o) external {
         require(orders[id] == getHash(o), 'board/wrong-hash');
-        require(o.expires < block.timestamp || o.owner == msg.sender, 'board/invalid-cancel');
+        require(o.expires <= block.timestamp || o.owner == msg.sender, 'board/invalid-cancel');
         delete orders[id];
         emit Cancel(msg.sender, id);
     }
@@ -95,17 +94,5 @@ contract Board {
             o.buying, o.owner, o.expires, o.baseAmt,
             o.price, o.flexible
         ));
-    }
-
-    function getHash2(Order memory o) private view returns (bytes32) {
-        return keccak256(abi.encodePacked(
-            o.baseTkn, o.quoteTkn, o.baseDecimals,
-            o.buying, o.owner, o.expires + block.timestamp, o.baseAmt,
-            o.price, o.flexible
-        ));
-    }
-
-    function min(uint a, uint b) private pure returns (uint) {
-        return a < b ? a : b;
     }
 }
