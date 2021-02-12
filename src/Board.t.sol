@@ -54,7 +54,7 @@ contract BoardTester {
         bool buying_,
         ERC20Token baseTkn_, ERC20Token quoteTkn_,
         uint baseAmt_, uint price_,
-        bool flexible_,
+        uint minBaseAmt_,
         uint expires_
     ) public returns (uint id, Order memory o) {
         o = Order( {
@@ -65,8 +65,8 @@ contract BoardTester {
             owner: address(this),
             baseAmt: baseAmt_,
             price: price_,
-            expires: expires_,
-            flexible: flexible_
+            minBaseAmt: minBaseAmt_,
+            expires: expires_
         });
         id = board.make(o);
     }
@@ -75,11 +75,19 @@ contract BoardTester {
         bool buying_,
         ERC20Token baseTkn_, ERC20Token quoteTkn_,
         uint baseAmt_, uint price_,
-        bool flexible_
+        uint minBaseAmt_
     ) public returns (uint id, Order memory o) {
         return make(
-            buying_, baseTkn_, quoteTkn_, baseAmt_, price_, flexible_, block.timestamp + 60 * 60
+            buying_, baseTkn_, quoteTkn_, baseAmt_, price_, minBaseAmt_, block.timestamp + 60 * 60
         );
+    }
+
+    function make(
+        bool buying_,
+        ERC20Token baseTkn_, ERC20Token quoteTkn_,
+        uint baseAmt_, uint price_
+    ) public returns (uint id, Order memory o) {
+        return make(buying_, baseTkn_, quoteTkn_, baseAmt_, price_, baseAmt_);
     }
 
     function take(uint id, uint baseAmt, Order memory o) public {
@@ -110,9 +118,6 @@ contract BoardTest is DSTest {
 
     bool constant public BUY = true;
     bool constant public SELL = false;
-
-   bool constant public ALL = false;
-   bool constant public PARTIAL = true;
 
      // CHEAT_CODE = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D
     bytes20 constant CHEAT_CODE =
@@ -150,17 +155,17 @@ contract BoardTest is DSTest {
 
 contract CancelTest is BoardTest {
     function testCancel() public {
-        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, ALL);
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
         alice.cancel(id, o);
     }
 
     function testFailCancelOwnerOnly() public {
-        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, ALL);
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
         bob.cancel(id, o);
     }
 
     function testCancelExpired() public {
-        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, ALL);
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
         hevm.warp(block.timestamp + MINUTE() + 1);
         bob.cancel(id, o);
     }
@@ -168,12 +173,12 @@ contract CancelTest is BoardTest {
 
 contract TakeTest is BoardTest {
     function testTake() public {
-        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, ALL);
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
         bob.take(id, 1 ether, o);
     }
 
     function testFailTakeFakePriceFails() public {
-        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, ALL);
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
         o.price = o.price + 1;
         bob.take(id, 1 ether, o);
     }
@@ -181,21 +186,21 @@ contract TakeTest is BoardTest {
 
 contract AllOrNothingTakeTest is BoardTest {
     function testFailTakeAllOrNothing() public {
-        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, ALL);
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
         bob.take(id, 0.5 ether, o);
     }
 }
 
 contract PartialTakeTest is BoardTest {
     function testTakePartial() public {
-        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, PARTIAL);
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
         bob.take(id, 0.5 ether, o);
         o.baseAmt = o.baseAmt - 0.5 ether;
         bob.take(id, 0.5 ether, o);
     }
 
     function testFailTakePartialCancel() public {
-        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, PARTIAL);
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
         bob.take(id, 0.5 ether, o);
         o.baseAmt = o.baseAmt - 0.5 ether;
         alice.cancel(id, o);
@@ -203,11 +208,24 @@ contract PartialTakeTest is BoardTest {
     }
 
     function testFailTakeCantOvertakePartial() public {
-        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, PARTIAL);
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
         bob.take(id, 0.5 ether, o);
         o.baseAmt = o.baseAmt - 0.5 ether;
         bob.take(id, 0.5 ether, o);
         o.baseAmt = o.baseAmt - 0.5 ether;
         bob.take(id, 0.5 ether, o);
     }
+
+    function testFailCantTakeLessThanMin() public {
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
+        bob.take(id, 0.4 ether, o);
+    }
+
+    function testCatTakeLessThanMinIfLast() public {
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
+        bob.take(id, 0.6 ether, o);
+        o.baseAmt = o.baseAmt - 0.6 ether;
+        bob.take(id, 0.4 ether, o);
+    }
+
 }

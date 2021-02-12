@@ -15,7 +15,7 @@ struct Order {
     uint expires; // timestamp
     uint baseAmt;
     uint price;
-    bool flexible;
+    uint minBaseAmt;
 }
 
 contract Board {
@@ -32,6 +32,7 @@ contract Board {
     function make(Order calldata o) external returns (uint id) {
         require(o.expires > block.timestamp && o.expires < block.timestamp + TTL);
         require(o.owner == msg.sender);
+        require(o.minBaseAmt > 0);
         id = next++;
         orders[id] = getHash(o);
         emit Make(id, o);
@@ -41,7 +42,7 @@ contract Board {
         require(orders[id] == getHash(o), 'board/wrong-hash');
         require(o.expires > block.timestamp, 'board/expired');
         require(baseAmt <= o.baseAmt, 'board/base-too-big');
-        require(o.flexible || baseAmt == o.baseAmt, 'board/flexible-not-allowed');
+        require(baseAmt >= o.minBaseAmt || baseAmt == o.baseAmt, 'board/base-too-small');
 
         uint baseOne = 10 ** uint(o.baseDecimals);
         uint roundingCorrection = !o.buying ? baseOne / 2 : 0;
@@ -92,7 +93,7 @@ contract Board {
         return keccak256(abi.encodePacked(
             o.baseTkn, o.quoteTkn, o.baseDecimals,
             o.buying, o.owner, o.expires, o.baseAmt,
-            o.price, o.flexible
+            o.price, o.minBaseAmt
         ));
     }
 }
