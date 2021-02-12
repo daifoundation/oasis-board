@@ -44,9 +44,9 @@ contract Board {
         require(baseAmt <= o.baseAmt, 'board/base-too-big');
         require(baseAmt >= o.minBaseAmt || baseAmt == o.baseAmt, 'board/base-too-small');
 
-        uint baseOne = 10 ** uint(o.baseDecimals);
-        uint roundingCorrection = !o.buying ? baseOne / 2 : 0;
-        uint quoteAmt = (baseAmt * o.price + roundingCorrection) / baseOne;
+        uint one = 10 ** uint(o.baseDecimals);
+        uint rounding = !o.buying ? one : 0;
+        uint quoteAmt = (baseAmt * o.price + rounding) / one;
 
         if(baseAmt < o.baseAmt) {
             Order memory n = o;
