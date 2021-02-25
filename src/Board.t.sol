@@ -245,16 +245,37 @@ contract RoundingTest is BoardTest {
     function testRoundSell() public {
         (uint id, Order memory o) =
             alice.make(SELL, tkn, dai, 1 ether, 0.333333333333333333 ether, 1);
-        uint bobPreDaiBalance = dai.balanceOf(address(bob));
+        uint daiBalance = dai.balanceOf(address(bob));
         bob.take(id, 0.1 ether, o);
-        assertEq(bobPreDaiBalance - dai.balanceOf(address(bob)), 0.033333333333333334 ether);
+        assertEq(daiBalance - dai.balanceOf(address(bob)), 0.033333333333333334 ether);
     }
+
     function testRoundBuy() public {
         (uint id, Order memory o) =
             alice.make(BUY, tkn, dai, 1 ether, 0.333333333333333333 ether, 1);
-        uint bobPreDaiBalance = dai.balanceOf(address(bob));
+        uint daiBalance = dai.balanceOf(address(bob));
         bob.take(id, 0.1 ether, o);
-        assertEq(dai.balanceOf(address(bob)) - bobPreDaiBalance, 0.033333333333333333 ether);
+        assertEq(dai.balanceOf(address(bob)) - daiBalance, 0.033333333333333333 ether);
+    }
+}
+
+contract ExpirationTest is BoardTest {
+    function testFailTooSoon() public {
+        alice.make(SELL, tkn, dai, 1 ether, 10 ether, 1, block.timestamp - 1);
+    }
+    function testFailTooLate() public {
+        alice.make(SELL, tkn, dai, 1 ether, 10 ether, 1, block.timestamp + board.TTL() + 1);
     }
 
+    // function testA() public {
+    //     (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 1, block.timestamp + 10);
+    //     hevm.warp(block.timestamp + 5);
+    //     bob.take(id, 0.5 ether, o);
+    // }
+
+    //     function testFailA() public {
+    //     (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 1, block.timestamp + 10);
+    //     hevm.warp(block.timestamp + 11);
+    //     bob.take(id, 0.5 ether, o);
+    // }
 }

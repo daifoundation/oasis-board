@@ -27,7 +27,7 @@ contract Board {
 
     mapping (uint => bytes32) public orders;
 
-    uint constant TTL = 14 * 24 * 60 * 60; // 14 days
+    uint constant public TTL = 14 * 24 * 60 * 60; // 14 days
 
     function make(Order calldata o) external returns (uint id) {
         require(o.expires > block.timestamp && o.expires < block.timestamp + TTL);
