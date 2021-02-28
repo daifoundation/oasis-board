@@ -30,9 +30,9 @@ contract Board {
     uint constant public TTL = 14 * 24 * 60 * 60; // 14 days
 
     function make(Order calldata o) external returns (uint id) {
-        require(o.expires > block.timestamp && o.expires < block.timestamp + TTL);
-        require(o.owner == msg.sender);
-        require(o.minBaseAmt > 0);
+        require(o.owner == msg.sender, 'board/not-owner');
+        require(o.expires > block.timestamp, 'board/to-late');
+        require(o.expires < block.timestamp + TTL, 'board/to-long');
         id = next++;
         orders[id] = getHash(o);
         emit Make(id, o);
@@ -45,7 +45,7 @@ contract Board {
         require(baseAmt >= o.minBaseAmt || baseAmt == o.baseAmt, 'board/base-too-small');
 
         uint one = 10 ** uint(o.baseDecimals);
-        uint rounding = !o.buying ? one : 0;
+        uint rounding = !o.buying && (baseAmt * o.price) % one > 0 ? one : 0;
         uint quoteAmt = (baseAmt * o.price + rounding) / one;
 
         if(baseAmt < o.baseAmt) {
@@ -85,7 +85,7 @@ contract Board {
         (bool success, bytes memory returndata) = address(token).call(data);
         require(success, "board/token-call-failed");
         if (returndata.length > 0) { // Return data is optional
-            require(abi.decode(returndata, (bool)), "board/transferFrom failed");
+            require(abi.decode(returndata, (bool)), "board/transfer-failed");
         }
     }
 

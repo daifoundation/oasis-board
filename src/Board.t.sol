@@ -8,13 +8,13 @@ contract ERC20Token {
     uint8   public decimals = 18;
     string  public symbol;
 
-    mapping (address => uint)                      public balanceOf;
+    mapping (address => uint) public balanceOf;
     mapping (address => mapping (address => uint)) public allowance;
 
     constructor(string memory symbol_, uint8 decimals_) {
         symbol = symbol_;
         decimals = decimals_;
-        balanceOf[msg.sender] = balanceOf[msg.sender] + 100000 ether;
+        balanceOf[msg.sender] = 100000 ether;
     }
 
     function transfer(address dst, uint wad) external returns (bool) {
@@ -156,7 +156,9 @@ contract BoardTest is DSTest {
 contract CancelTest is BoardTest {
     function testCancel() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
+        assertTrue(board.orders(id) != 0);
         alice.cancel(id, o);
+        assertEq(board.orders(id), 0);
     }
 
     function testFailCancelOwnerOnly() public {
@@ -172,9 +174,26 @@ contract CancelTest is BoardTest {
 }
 
 contract TakeTest is BoardTest {
-    function testTake() public {
+    function testTakeBuy() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
+        assertEq(dai.balanceOf(address(bob)), 100 ether);
+        assertEq(dai.balanceOf(address(alice)), 100 ether);
+        assertEq(tkn.balanceOf(address(bob)), 100 ether);
+        assertEq(tkn.balanceOf(address(alice)), 100 ether);
         bob.take(id, 1 ether, o);
+        assertEq(dai.balanceOf(address(bob)), 110 ether);
+        assertEq(dai.balanceOf(address(alice)), 90 ether);
+        assertEq(tkn.balanceOf(address(bob)), 99 ether);
+        assertEq(tkn.balanceOf(address(alice)), 101 ether);
+    }
+
+    function testTakeSell() public {
+        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether);
+        bob.take(id, 1 ether, o);
+        assertEq(dai.balanceOf(address(bob)), 90 ether);
+        assertEq(dai.balanceOf(address(alice)), 110 ether);
+        assertEq(tkn.balanceOf(address(bob)), 101 ether);
+        assertEq(tkn.balanceOf(address(alice)), 99 ether);
     }
 
     function testFailCantTakeFakePrice() public {
@@ -186,9 +205,8 @@ contract TakeTest is BoardTest {
     function testFailCantTakeFakeAmount() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
         o.price = o.baseAmt + 1;
-        bob.take(id, 2 ether, o);
+        bob.take(id, 1 ether, o);
     }
-
 
     function testFailCantTakeMoreThanPossible() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
@@ -197,21 +215,29 @@ contract TakeTest is BoardTest {
 }
 
 contract AllOrNothingTakeTest is BoardTest {
-    function testFailTakeAllOrNothing() public {
+    function testFailTakeBuyAllOrNothing() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether);
+        bob.take(id, 0.5 ether, o);
+    }
+    function testFailTakeSellAllOrNothing() public {
+        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether);
         bob.take(id, 0.5 ether, o);
     }
 }
 
-contract PartialTakeTest is BoardTest {
-    function testTakePartial() public {
+contract PartialTakeBuyTest is BoardTest {
+    function testTakeBuyPartial() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
         bob.take(id, 0.5 ether, o);
         o.baseAmt = o.baseAmt - 0.5 ether;
         bob.take(id, 0.5 ether, o);
+        assertEq(dai.balanceOf(address(bob)), 110 ether);
+        assertEq(dai.balanceOf(address(alice)), 90 ether);
+        assertEq(tkn.balanceOf(address(bob)), 99 ether);
+        assertEq(tkn.balanceOf(address(alice)), 101 ether);
     }
 
-    function testFailTakePartialCancel() public {
+    function testFailTakeBuyPartialCancel() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
         bob.take(id, 0.5 ether, o);
         o.baseAmt = o.baseAmt - 0.5 ether;
@@ -219,7 +245,7 @@ contract PartialTakeTest is BoardTest {
         bob.take(id, 0.5 ether, o);
     }
 
-    function testFailTakeCantOvertakePartial() public {
+    function testFailTakeBuyCantOvertakePartial() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
         bob.take(id, 0.5 ether, o);
         o.baseAmt = o.baseAmt - 0.5 ether;
@@ -228,12 +254,12 @@ contract PartialTakeTest is BoardTest {
         bob.take(id, 0.5 ether, o);
     }
 
-    function testFailCantTakeLessThanMin() public {
+    function testFailCantTakeBuyLessThanMin() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
         bob.take(id, 0.4 ether, o);
     }
 
-    function testCanTakeLessThanMinIfLast() public {
+    function testCanTakeBuyLessThanMinIfLast() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
         bob.take(id, 0.6 ether, o);
         o.baseAmt = o.baseAmt - 0.6 ether;
@@ -241,8 +267,50 @@ contract PartialTakeTest is BoardTest {
     }
 }
 
+contract PartialTakeSellTest is BoardTest {
+    function testTakeSellPartial() public {
+        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 0.5 ether);
+        bob.take(id, 0.5 ether, o);
+        o.baseAmt = o.baseAmt - 0.5 ether;
+        bob.take(id, 0.5 ether, o);
+        assertEq(dai.balanceOf(address(bob)), 90 ether);
+        assertEq(dai.balanceOf(address(alice)), 110 ether);
+        assertEq(tkn.balanceOf(address(bob)), 101 ether);
+        assertEq(tkn.balanceOf(address(alice)), 99 ether);
+    }
+
+    function testFailTakeSellPartialCancel() public {
+        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 0.5 ether);
+        bob.take(id, 0.5 ether, o);
+        o.baseAmt = o.baseAmt - 0.5 ether;
+        alice.cancel(id, o);
+        bob.take(id, 0.5 ether, o);
+    }
+
+    function testFailTakeSellCantOvertakePartial() public {
+        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 0.5 ether);
+        bob.take(id, 0.5 ether, o);
+        o.baseAmt = o.baseAmt - 0.5 ether;
+        bob.take(id, 0.5 ether, o);
+        o.baseAmt = o.baseAmt - 0.5 ether;
+        bob.take(id, 0.5 ether, o);
+    }
+
+    function testFailCantTakeSellLessThanMin() public {
+        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 0.5 ether);
+        bob.take(id, 0.4 ether, o);
+    }
+
+    function testCanTakeSellLessThanMinIfLast() public {
+        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 0.5 ether);
+        bob.take(id, 0.6 ether, o);
+        o.baseAmt = o.baseAmt - 0.6 ether;
+        bob.take(id, 0.4 ether, o);
+    }
+}
+
 contract RoundingTest is BoardTest {
-    function testRoundSell() public {
+    function testRoundingSell() public {
         (uint id, Order memory o) =
             alice.make(SELL, tkn, dai, 1 ether, 0.333333333333333333 ether, 1);
         uint daiBalance = dai.balanceOf(address(bob));
@@ -250,12 +318,28 @@ contract RoundingTest is BoardTest {
         assertEq(daiBalance - dai.balanceOf(address(bob)), 0.033333333333333334 ether);
     }
 
-    function testRoundBuy() public {
+    function testRoundingRoundSell() public {
+        (uint id, Order memory o) =
+            alice.make(SELL, tkn, dai, 1 ether, 10 ether, 1);
+        uint daiBalance = dai.balanceOf(address(bob));
+        bob.take(id, 0.1 ether, o);
+        assertEq(daiBalance - dai.balanceOf(address(bob)), 1 ether);
+    }
+
+    function testRoundingBuy() public {
         (uint id, Order memory o) =
             alice.make(BUY, tkn, dai, 1 ether, 0.333333333333333333 ether, 1);
         uint daiBalance = dai.balanceOf(address(bob));
         bob.take(id, 0.1 ether, o);
         assertEq(dai.balanceOf(address(bob)) - daiBalance, 0.033333333333333333 ether);
+    }
+
+    function testRoundingRoundBuy() public {
+        (uint id, Order memory o) =
+            alice.make(BUY, tkn, dai, 1 ether, 10 ether, 1);
+        uint daiBalance = dai.balanceOf(address(bob));
+        bob.take(id, 0.1 ether, o);
+        assertEq(dai.balanceOf(address(bob)) - daiBalance, 1 ether);
     }
 }
 
@@ -267,15 +351,15 @@ contract ExpirationTest is BoardTest {
         alice.make(SELL, tkn, dai, 1 ether, 10 ether, 1, block.timestamp + board.TTL() + 1);
     }
 
-    // function testA() public {
-    //     (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 1, block.timestamp + 10);
-    //     hevm.warp(block.timestamp + 5);
-    //     bob.take(id, 0.5 ether, o);
-    // }
+    function testTakeInTime() public {
+        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 1, block.timestamp + 10);
+        hevm.warp(block.timestamp + 5);
+        bob.take(id, 0.5 ether, o);
+    }
 
-    //     function testFailA() public {
-    //     (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 1, block.timestamp + 10);
-    //     hevm.warp(block.timestamp + 11);
-    //     bob.take(id, 0.5 ether, o);
-    // }
+        function testFailCantTakeExpired() public {
+        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 1, block.timestamp + 10);
+        hevm.warp(block.timestamp + 11);
+        bob.take(id, 0.5 ether, o);
+    }
 }
