@@ -16,7 +16,7 @@ To save gas, instead of order, hash of order is stored in the smart contract. To
 
 Nonobvious consequence of above hash based gas saving approach is that practically only one operation on given order per block is possible. Partial taker needs to know current state of the order that she wants to interact with. So of two partial takes of given order only one will succeed. Which means that hash based approach makes sense for low traffic markets. Otherwise gas saved in makes will be consumend by failed takes.
 
-To make order discovery possible on every operation events(see: ...) are emmited. Users are expected to reconstruct board state from contract history:
+To make order discovery possible on every operation [events](./src/Board.sol#L22) are emmited. Users are expected to reconstruct board state from contract history:
 `board state` = `created orders` - `settled orders` - `canceled orders`
 
 ### Order model
@@ -35,6 +35,8 @@ struct Order {
     uint minBaseAmt;
 }
 ```
+See [src/Board.sol](src/Board.sol#L9).
+
 Where:
 - **baseTkn** - address of base token
 - **quoteTkn** - address of quote token
@@ -52,7 +54,7 @@ If `minBaseAmt` < `baseAmount` then partial fills are allowed and take amount ne
 ### Rounding
 Only quote amounts are rounded, never base. Potential loss related to rounding is always on taker's side.
 
-Links to examples in tests: RoundingTest ...
+See [examples in tests](./src/Board.t.sol#L312).
 
 ## API
 
