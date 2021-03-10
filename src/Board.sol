@@ -27,12 +27,13 @@ contract Board {
 
     mapping (uint => bytes32) public orders;
 
-    uint constant public TTL = 14 * 24 * 60 * 60; // 14 days
+    uint constant public TTL = 30 * 24 * 60 * 60; // 30 days
 
     function make(Order calldata o) external returns (uint id) {
         require(o.owner == msg.sender, 'board/not-owner');
-        require(o.expires > block.timestamp, 'board/to-late');
-        require(o.expires < block.timestamp + TTL, 'board/to-long');
+        require(o.expires > block.timestamp, 'board/too-late');
+        require(o.expires < block.timestamp + TTL, 'board/too-long');
+        require(o.baseAmt >= o.minBaseAmt, 'board/min-base-too-big');
         id = next++;
         orders[id] = getHash(o);
         emit Make(id, o);

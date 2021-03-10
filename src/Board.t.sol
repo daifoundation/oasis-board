@@ -226,6 +226,8 @@ contract AllOrNothingTakeTest is BoardTest {
 }
 
 contract PartialTakeBuyTest is BoardTest {
+
+
     function testTakeBuyPartial() public {
         (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 0.5 ether);
         bob.take(id, 0.5 ether, o);
@@ -235,6 +237,10 @@ contract PartialTakeBuyTest is BoardTest {
         assertEq(dai.balanceOf(address(alice)), 90 ether);
         assertEq(tkn.balanceOf(address(bob)), 99 ether);
         assertEq(tkn.balanceOf(address(alice)), 101 ether);
+    }
+
+    function testFailMinBaseGtBase() public {
+        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 11 ether);
     }
 
     function testFailTakeBuyPartialCancel() public {
@@ -277,6 +283,10 @@ contract PartialTakeSellTest is BoardTest {
         assertEq(dai.balanceOf(address(alice)), 110 ether);
         assertEq(tkn.balanceOf(address(bob)), 101 ether);
         assertEq(tkn.balanceOf(address(alice)), 99 ether);
+    }
+
+    function testFailMinBaseGtBase() public {
+        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 11 ether);
     }
 
     function testFailTakeSellPartialCancel() public {
