@@ -32,7 +32,7 @@ contract Board {
     function make(Order calldata o) external returns (uint id) {
         require(o.owner == msg.sender, 'board/not-owner');
         require(o.expires > block.timestamp, 'board/too-late');
-        require(o.expires < block.timestamp + TTL, 'board/too-long');
+        require(o.expires <= block.timestamp + TTL, 'board/too-long');
         require(o.baseAmt >= o.minBaseAmt, 'board/min-base-too-big');
         id = next++;
         orders[id] = getHash(o);
@@ -98,3 +98,4 @@ contract Board {
         ));
     }
 }
+
