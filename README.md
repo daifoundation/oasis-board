@@ -63,7 +63,7 @@ See [examples in tests](./src/Board.t.sol#L312).
 
 Creates an order. Returns unique order id.
 
-Order existence gives the board contract a right to manipulate order owner funds. Make method determines order ownership based on `msg.sender`. Alernatively signature based ownership model might be used, although it is not implemented.
+Order existence gives the board contract a potential right to manipulate order owner funds. Make method determines order ownership based on `msg.sender`. Alernatively signature based ownership model might be used, although it is not implemented.
 
 ### take
 `function take(uint id, uint baseAmt, Order calldata o)`
