@@ -91,7 +91,7 @@ contract Board {
     }
 
     function getHash(Order memory o) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(
+        return keccak256(abi.encode(
             o.baseTkn, o.quoteTkn, o.baseDecimals,
             o.buying, o.owner, o.expires, o.baseAmt,
             o.price, o.minBaseAmt
