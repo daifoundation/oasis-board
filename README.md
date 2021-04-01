@@ -86,7 +86,6 @@ Cancel order identified by `id`. Since no order data is stored in the sc, order 
 ## Gas usage
 - **constructor** - [1,419,488](https://kovan.etherscan.io/tx/0xc4e6d2b251526343fc6c1ddb76d5c68e98075d5e33fd447ae3983b43ea0a0829)
 - **make** - [61,300](https://kovan.etherscan.io/tx/0x5cdfe5c28906d098225d10d83edd407996374f562c079d39329b68bda2d67f1c)
-- **make partial** - [61,324](https://kovan.etherscan.io/tx/0xfeb2953109dc685cdeee661484d91975eaaa31939da783837b44a9b866bf5632)
 - **take all** - [64,258](https://kovan.etherscan.io/tx/0xd17dd9cf19e32365d424dc119e4a0f39f325eb726a9f9f3ec57354b829c0cea2)
 - **take partial** - [83,828](https://kovan.etherscan.io/tx/0xa6ff121bfafc0b0d8485e88cac5f2ac019d3a9a45c80da709f557bb6e3b949fe)
 - **cancel** - [21,100](https://kovan.etherscan.io/tx/0xd5102025fee9455c5491f069c841b7ea20c5ff7340e9b35b69a5b9318af5f2a7)
