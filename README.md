@@ -44,9 +44,9 @@ Where:
 - **buying** - trade direction `true` = buy, `false` = sell
 - **owner** - owner of the order, ie maker
 - **expires** - order is valid until expiration date
-- **baseAmt** - amount of base token
-- **price** - price in quote currency
-- **minBaseAmt** - minimum take amount
+- **baseAmt** - amount of base token - wei denominated, with base precision
+- **price** - price - amount of quote tokens for 1 base token - wei denominated, with quote precision
+- **minBaseAmt** - minimum take amount - wei denominated, with base precision
 
 ### Partial fills
 If `minBaseAmt` < `baseAmount` then partial fills are allowed and take amount needs to meet following condition: `baseAmt >= o.minBaseAmt || baseAmt == o.baseAmt`.
@@ -75,7 +75,7 @@ Settlement is not guaranteed. There are several reasons for why settlement might
 - lack of funds
 - transfer restrictions
 
-All of this conditions are verified implicitly at the moment of settelment. If settlment fails transaction is reverted and order is left on the board. In order to provide good user experience frontends should filter out orders that does not meet above conditions and will fail during settlement.
+All of these conditions are verified implicitly at the moment of settelment. If settlment fails transaction is reverted and order is left on the board. In order to provide good user experience frontends should filter out orders that does not meet above conditions and will fail during settlement.
 
 
 ### cancel
