@@ -60,11 +60,12 @@ contract Board {
         emit Take(msg.sender, id, baseAmt, quoteAmt);
 
         if(o.buying) {
-            safeTransferFrom(ERC20(o.quoteTkn), o.owner, msg.sender, quoteAmt);
             safeTransferFrom(ERC20(o.baseTkn), msg.sender, o.owner, baseAmt);
+            safeTransferFrom(ERC20(o.quoteTkn), o.owner, msg.sender, quoteAmt);
+
         } else {
-            safeTransferFrom(ERC20(o.quoteTkn), msg.sender, o.owner, quoteAmt);
             safeTransferFrom(ERC20(o.baseTkn), o.owner, msg.sender, baseAmt);
+            safeTransferFrom(ERC20(o.quoteTkn), msg.sender, o.owner, quoteAmt);
         }
     }
 
