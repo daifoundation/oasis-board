@@ -44,8 +44,8 @@ Where:
 - **buying** - trade direction `true` = buy, `false` = sell
 - **owner** - owner of the order, ie maker
 - **expires** - order is valid until expiration date (unix time)
-- **baseAmt** - amount of base tokens, integer representation of fixed-point number with base token precision. E.q. baseAmt == 1 with basePrecision == 2 represents 0.001 tokens.
-- **price** - price - amount of quote tokens per base token, integer representation of fixed-point number with quote token precision. E.g. price == 1 with quotePrecision == 3 represents 0.001 quote tokens per base token.
+- **baseAmt** - amount of base tokens, integer representation of fixed-point number with base token precision. E.q. `baseAmt` = 1 with basePrecision = 2 represents 0.001 tokens.
+- **price** - price - amount of quote tokens per base token, integer representation of fixed-point number with quote token precision. E.g. `price` = 1 with quotePrecision = 3 represents 0.001 quote tokens per base token.
 - **minBaseAmt** - minimum take amount, see baseAmt for representation
 
 ### Partial fills
