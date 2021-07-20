@@ -338,6 +338,8 @@ contract PartialTakeSellTest is BoardTest {
 
 contract RoundingTest is BoardTest {
     function testRoundingSell() public {
+        // 1 ether = 1 * 10^18
+        // 0.333333333333333333 ether = 0.333333333333333333 * 10^18
         (uint id, Order memory o) =
             alice.make(SELL, tkn, dai, 1 ether, 0.333333333333333333 ether, 1);
         uint daiBalance = dai.balanceOf(address(bob));
