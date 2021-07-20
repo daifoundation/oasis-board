@@ -40,7 +40,7 @@ contract ERC20Token {
     }
 }
 
-contract BoardTester {
+contract BoardTester is DSTest {
     Board board;
     mapping (uint => Order) public orders;
 
@@ -101,6 +101,23 @@ contract BoardTester {
     function approve(ERC20Token tkn, address usr, uint wad) external {
         tkn.approve(usr, wad);
     }
+
+    function getHashTestEncodePacked(Order memory o) external logs_gas returns (bytes32) {
+        return keccak256(abi.encodePacked(
+            o.baseTkn, o.quoteTkn, o.baseDecimals,
+            o.buying, o.owner, o.expires, o.baseAmt,
+            o.price, o.minBaseAmt
+        ));
+    }
+
+    function getHashTestEncode(Order memory o) external logs_gas returns (bytes32) {
+        return keccak256(abi.encode(
+            o.baseTkn, o.quoteTkn, o.baseDecimals,
+            o.buying, o.owner, o.expires, o.baseAmt,
+            o.price, o.minBaseAmt
+        ));
+    }
+
 }
 
 interface Hevm {
@@ -240,7 +257,7 @@ contract PartialTakeBuyTest is BoardTest {
     }
 
     function testFailMinBaseGtBase() public {
-        (uint id, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 11 ether);
+        alice.make(BUY, tkn, dai, 1 ether, 10 ether, 11 ether);
     }
 
     function testFailTakeBuyPartialCancel() public {
@@ -286,7 +303,7 @@ contract PartialTakeSellTest is BoardTest {
     }
 
     function testFailMinBaseGtBase() public {
-        (uint id, Order memory o) = alice.make(SELL, tkn, dai, 1 ether, 10 ether, 11 ether);
+        alice.make(SELL, tkn, dai, 1 ether, 10 ether, 11 ether);
     }
 
     function testFailTakeSellPartialCancel() public {
@@ -321,6 +338,8 @@ contract PartialTakeSellTest is BoardTest {
 
 contract RoundingTest is BoardTest {
     function testRoundingSell() public {
+        // 1 ether = 1 * 10^18
+        // 0.333333333333333333 ether = 0.333333333333333333 * 10^18
         (uint id, Order memory o) =
             alice.make(SELL, tkn, dai, 1 ether, 0.333333333333333333 ether, 1);
         uint daiBalance = dai.balanceOf(address(bob));
@@ -373,3 +392,12 @@ contract ExpirationTest is BoardTest {
         bob.take(id, 0.5 ether, o);
     }
 }
+
+// contract EncodeGasUsageTest is BoardTest {
+//     function testGasUsage() public {
+//         (, Order memory o) = alice.make(BUY, tkn, dai, 1 ether, 10 ether, 1);
+//         alice.getHashTestEncode(o); // log_named_uint("gas", 1385)
+//         alice.getHashTestEncodePacked(o); // log_named_uint("gas", 2227)
+//         revert();
+//     }
+// }
